@@ -1,0 +1,8 @@
+{
+  "name": "KHALABA",
+  "short_name": "KHALABA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F9F5F0",
+  "theme_color": "#A95C42"
+}

@@ -1,0 +1,197 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN_NATIONAL
+  ADMIN_ZONE
+  SAGE_FEMME
+  GYNECOLOGUE
+}
+
+enum DeathType {
+  MATERNAL
+  NEONATAL
+}
+
+model Zone {
+  id          String              @id @default(uuid())
+  name        String
+  countryCode String
+  facilities  Facility[]
+  users       User[]
+  patients    Patient[]
+  deathAudits DeathAudit[]
+  snapshots   IndicatorSnapshot[]
+}
+
+model Facility {
+  id        String         @id @default(uuid())
+  name      String
+  zoneId    String
+  zone      Zone           @relation(fields: [zoneId], references: [id])
+  users     User[]
+  patients  Patient[]
+  logsDHIS2 DHIS2SyncLog[]
+}
+
+model User {
+  id           String             @id @default(uuid())
+  phone        String             @unique
+  email        String?            @unique
+  name         String
+  role         Role
+  passwordHash String
+  zoneId       String
+  zone         Zone               @relation(fields: [zoneId], references: [id])
+  facilityId   String
+  facility     Facility           @relation(fields: [facilityId], references: [id])
+  contactsCPN  AntenatalContact[]
+  auditLogs    AuditLog[]
+  deletedAt    DateTime?
+}
+
+model Patient {
+  id          String        @id @default(uuid())
+  khalabaId   String        @unique
+  name        String
+  surname     String
+  phone       String
+  age         Int
+  ddr         DateTime?
+  zoneId      String
+  zone        Zone          @relation(fields: [zoneId], references: [id])
+  facilityId  String
+  facility    Facility      @relation(fields: [facilityId], references: [id])
+  pregnancies Pregnancy[]
+  vaccines    VaccineDose[]
+  deathAudits DeathAudit[]
+  deletedAt   DateTime?
+}
+
+model Pregnancy {
+  id            String             @id @default(uuid())
+  patientId     String
+  patient       Patient            @relation(fields: [patientId], references: [id])
+  status        String             @default("ACTIVE")
+  riskScore     Int                @default(0)
+  complications Complication[]
+  cpnContacts   AntenatalContact[]
+  postnatals    PostnatalVisit[]
+  newborns      NewbornRecord[]
+  createdAt     DateTime           @default(now())
+  deletedAt     DateTime?
+}
+
+model Complication {
+  id          String    @id @default(uuid())
+  name        String
+  pregnancyId String
+  pregnancy   Pregnancy @relation(fields: [pregnancyId], references: [id])
+  detectedAt  DateTime  @default(now())
+}
+
+model AntenatalContact {
+  id               String    @id @default(uuid())
+  contactNumber    Int
+  pregnancyId      String
+  pregnancy        Pregnancy @relation(fields: [pregnancyId], references: [id])
+  userId           String
+  user             User      @relation(fields: [userId], references: [id])
+  weight           Float?
+  bpSystolic       Int
+  bpDiastolic      Int
+  uterineHeight    Float?
+  fetalHeartRate   Int?
+  gestationalAgeSA Int?
+  hemoglobin       Float?
+  proteinuria      Boolean   @default(false)
+  hivStatus        String?
+  syphilisStatus   String?
+  ironGiven        Boolean   @default(false)
+  dewormingGiven   Boolean   @default(false)
+  malariaTPIp      Boolean   @default(false)
+  hasDangerSigns   Boolean   @default(false)
+  dangerNotes      String?
+  createdAt        DateTime  @default(now())
+}
+
+model PostnatalVisit {
+  id                String    @id @default(uuid())
+  step              Int
+  pregnancyId       String
+  pregnancy         Pregnancy @relation(fields: [pregnancyId], references: [id])
+  maternalBleeding  String?
+  uterineTonus      String?
+  maternalTemp      Float?
+  hasMicturition    Boolean?
+  lochiesAspect     String?
+  contraceptionPlan String?
+  createdAt         DateTime  @default(now())
+}
+
+model NewbornRecord {
+  id            String    @id @default(uuid())
+  pregnancyId   String
+  pregnancy     Pregnancy @relation(fields: [pregnancyId], references: [id])
+  birthWeight   Float?
+  gender        String?
+  isBreastfed6h Boolean?
+  hasJaundice   Boolean?
+  hasDangerOM   Boolean?
+  createdAt     DateTime  @default(now())
+}
+
+model VaccineDose {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  antigen   String
+  givenAt   DateTime @default(now())
+}
+
+model DeathAudit {
+  id        String    @id @default(uuid())
+  type      DeathType
+  zoneId    String
+  zone      Zone      @relation(fields: [zoneId], references: [id])
+  patientId String?
+  patient   Patient?  @relation(fields: [patientId], references: [id])
+  cause     String
+  status    String    @default("PENDING_AUDIT")
+  notes     String?
+  createdAt DateTime  @default(now())
+}
+
+model DHIS2SyncLog {
+  id         String   @id @default(uuid())
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id])
+  kind       String
+  status     String
+  sentCount  Int      @default(0)
+  errorCount Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model IndicatorSnapshot {
+  id        String   @id @default(uuid())
+  zoneId    String
+  zone      Zone     @relation(fields: [zoneId], references: [id])
+  payload   Json
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  createdAt DateTime @default(now())
+}
